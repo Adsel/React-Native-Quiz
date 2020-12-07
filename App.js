@@ -1,7 +1,8 @@
-import * as React from 'react';
+import React, { Component } from 'react';
 import {
-    Button, View, Text, TextView, StyleSheet,
-    TouchableOpacity, ScrollView, Dimensions, Image
+    Button, View, Text, TextView, StyleSheet, AsyncStorage,
+    TouchableOpacity, ScrollView, Dimensions, Image, FlatList,
+    SafeAreaView, RefreshControl
 } from 'react-native';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
 import { NavigationContainer } from '@react-navigation/native';
@@ -14,28 +15,28 @@ import { Table, Row, Rows } from 'react-native-table-component';
 
 const ELEMENTS = [
     {
-        id: 1,
+        id: "1",
         header: 'Title test #1',
         linkName: '#Tag1',
         linkNameSecond: '#Tag2',
         body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. '
     },
     {
-        id: 2,
+        id: "2",
         header: 'Title test #2',
         linkName: '#Tag1',
         linkNameSecond: '#Tag2',
         body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. '
     },
     {
-        id: 3,
+        id: "3",
         header: 'Title test #3',
         linkName: '#Tag1',
         linkNameSecond: '#Tag2',
         body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. '
     },
     {
-        id: 4,
+        id: "4",
         header: 'Title test #4',
         linkName: '#Tag1',
         linkNameSecond: '#Tag2',
@@ -43,36 +44,43 @@ const ELEMENTS = [
     }
 ];
 
-const MAX_POINTS = 20;
-const RESULTS = [
+let tasks = [{
+    "question": "Który wódz"
+}];
+
+let RESULTS_DATA = [
     {
         id: 1,
-        nick: 'asdf',
-        points: 4,
-        date: '21-12-2019',
-        type: 'test1'
+        "nick": 'Marek',
+        "score": 4,
+        "total": 20,
+        "type": 'historia',
+        "date": '21-12-2019',
     },
     {
         id: 2,
-        nick: 'kfs',
-        points: 14,
-        date: '22-12-2019',
-        type: 'test1'
+        "nick": 'Roman',
+        "score": 12,
+        "total": 20,
+        "type": 'historia',
+        "date": '01-01-2020',
     },
     {
         id: 3,
-        nick: 'wer',
-        points: 17,
-        date: '24-12-2019',
-        type: 'test1'
+        "nick": 'Hieronim',
+        "score": 18,
+        "total": 20,
+        "type": 'historia',
+        "date": '20-01-2020',
     },
     {
         id: 4,
-        nick: 'qwert',
-        points: 10,
-        date: '21-12-2019',
-        type: 'test1'
-    }
+        "nick": 'Marek',
+        "score": 13,
+        "total": 20,
+        "type": 'historia',
+        "date": '21-01-2020',
+    },
 ];
 
 function ListElement(props) {
@@ -133,14 +141,56 @@ function Footer(props) {
     );
 }
 
+const privacyContent = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+
+const getIsAccepted = (navigation) => {
+    AsyncStorage.getItem('privacy_accepted').then((isAcc) => {
+        if(!(!!isAcc)) {
+            navigation.navigate('Privacy');
+        }
+    });
+};
+
+const acceptPrivacyPolicy = (navigation) => {
+    AsyncStorage.setItem('privacy_accepted', 'yes');
+    navigation.navigate('Home');
+};
+
+function PrivacyAccept(props) {
+    return (
+            <TouchableOpacity style={test.answer}>
+                <Text onPress={() => {acceptPrivacyPolicy(props.navigation);}} style={test.answerText}>Accept</Text>
+            </TouchableOpacity>
+    );
+}
+
+function PrivacyScreen({navigation}) {
+    return (
+        <ScrollView>
+            <Header name="Welcome Page"/>
+
+            <View style={body.container}>
+                <Text style={privacy.header}>
+                    Privacy Policy
+                </Text>
+                <Text style={privacy.content}>
+                    {privacyContent}
+                </Text>
+                <PrivacyAccept navigation={navigation} />
+             </View>
+        </ScrollView>
+    );
+}
 
 function HomeScreen({ navigation }) {
+    getIsAccepted(navigation);
   return (
     <ScrollView>
         <Header name="Home Page"/>
 
         <View style={body.container}>
             {
+
                 ELEMENTS.map(element => {
                     return <ListElement
                                 key={element.id}
@@ -156,48 +206,86 @@ function HomeScreen({ navigation }) {
   );
 }
 
-//<Button onPress={() => navigation.goBack()} title="Go back home" />
-
-function TableRow(props) {
-        return (
-            <View style={{ flex: 1, alignSelf: 'stretch', flexDirection: 'row' }}>
-                <View style={{ flex: 1, alignSelf: 'stretch' }} /> { /* Edit these as they are your cells. You may even take parameters to display different data / react elements etc. */}
-                <View style={{ flex: 1, alignSelf: 'stretch' }} />
-                <View style={{ flex: 1, alignSelf: 'stretch' }} />
-                <View style={{ flex: 1, alignSelf: 'stretch' }} />
-                <View style={{ flex: 1, alignSelf: 'stretch' }} />
+const RenderResult = (props) => {
+    let styles = [body.tdBg];
+    if (RESULTS_DATA.indexOf(props.item) % 2 == 0) {
+        styles = [body.tdBgAccent];
+    }
+    return (
+        <View style={[body.tr, styles]}>
+            <View style={body.td}>
+                <Text style={body.tdContent}>{props.item.nick}</Text>
             </View>
-        );
+            <View style={body.td}>
+                <Text style={body.tdContent}>{props.item.score}/{props.item.total}</Text>
+            </View>
+            <View style={body.td}>
+                <Text style={body.tdContent}>{props.item.type}</Text>
+            </View>
+            <View style={body.td}>
+                <Text style={body.tdContent}>{props.item.date}</Text>
+            </View>
+        </View>
+    );
+};
+
+const RenderResultHead = () => {
+    return (
+        <View style={[body.tr]}>
+            <View style={body.td}>
+                <Text style={body.tdTitle}>Nick</Text>
+            </View>
+            <View style={body.td}>
+                <Text style={body.tdTitle}>Points</Text>
+            </View>
+            <View style={body.td}>
+                <Text style={body.tdTitle}>Type</Text>
+            </View>
+            <View style={body.td}>
+                <Text style={body.tdTitle}>Date</Text>
+            </View>
+        </View>
+    );
 }
 
 function ResultScreen({ navigation }) {
-    state = {
-      tableHead: ['Nick', 'Point', 'Type', 'Date']
+  const renderItem = ({item}) => (
+        <RenderResult item={item}/>
+  );
+
+    const wait = (timeout) => {
+      return new Promise(resolve => {
+        setTimeout(resolve, timeout);
+      });
     }
 
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+
+    // RETRIEVE DATA
+    wait(2000).then(() => setRefreshing(false));
+  }, []);
+
   return (
-    <ScrollView>
+    <View>
         <Header name="Results"/>
 
-        <Table style={body.table} borderStyle={{borderWidth: 3, borderColor: COLOR_BLACK}}>
-            <Row style={body.tdTitleBg} textStyle={body.tdTitle} data={state.tableHead} />
-            {
-                RESULTS.map((element, index) => {
 
-                    const styles = index % 2 == 0 ? body.tdBgAccent: body.tdBg;
-                    return <Row
-                        key={element.id}
-                        style={styles}
-                        textStyle={body.td}
-                        data={[
-                            element.nick, element.points, element.type, element.date
-                        ]}
-                    />;
-                })
-            }
-            <Rows data={state.tableData} />
-        </Table>
-    </ScrollView>
+        <SafeAreaView style={body.table}>
+            <RenderResultHead />
+            <FlatList
+                style={{display: 'flex'}}
+                data={RESULTS_DATA}
+                renderItem={renderItem}
+                keyExtractor={item => RESULTS_DATA.indexOf(item).toString()}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+            />
+        </SafeAreaView>
+    </View>
   );
 }
 
@@ -282,18 +370,58 @@ function CustomDrawerContent(props) {
   );
 }
 
-export default function App() {
-  return (
-    <NavigationContainer>
-      <Drawer.Navigator  drawerStyle={drawer.container} initialRouteName="Home"
-        drawerContent={(props) => <CustomDrawerContent {...props} />}
-      >
-        <Drawer.Screen name="Home" component={HomeScreen} />
-        <Drawer.Screen name="Result" component={ResultScreen} />
-        <Drawer.Screen name="Test" component={TestScreen} />
-      </Drawer.Navigator>
-    </NavigationContainer>
-  );
+export default class App extends Component<{}> {
+    constructor(){
+        super();
+
+        this.state = {
+            isVisible : true,
+        }
+    }
+
+    Hide_Splash_Screen = () => {
+        this.setState({
+            isVisible : false
+        });
+    }
+
+    componentDidMount(){
+        const that = this;
+        setTimeout(() => {
+            that.Hide_Splash_Screen();
+        }, 2000);
+    }
+
+    render(){
+        let Splash_Screen = (
+            <View style={splashStyles.root}>
+                <View style={splashStyles.child}>
+                    <Image source={require('./img/loader.png')}
+                        style={{width:'100%', height: '100%', resizeMode: 'contain'}}
+                    />
+                </View>
+            </View>
+        );
+
+        let Drawer_Screen = (
+            <Drawer.Navigator  drawerStyle={drawer.container} initialRouteName="Home"
+                drawerContent={(props) => <CustomDrawerContent {...props} />}
+            >
+                <Drawer.Screen name="Privacy" component={PrivacyScreen} />
+                <Drawer.Screen name="Home" component={HomeScreen} />
+                <Drawer.Screen name="Result" component={ResultScreen} />
+                <Drawer.Screen name="Test" component={TestScreen} />
+            </Drawer.Navigator>
+        );
+
+      return (
+        <NavigationContainer>
+            {
+                (this.state.isVisible === true) ? Splash_Screen : Drawer_Screen
+            }
+        </NavigationContainer>
+      );
+    }
 }
 
 const COLOR_WHITE = '#ffffff';
@@ -459,6 +587,7 @@ const test = StyleSheet.create({
     }
 });
 
+const RESULT_TD_WIDTH = '25%';
 const body = StyleSheet.create({
     container: {
         backgroundColor: COLOR_WHITE,
@@ -470,11 +599,23 @@ const body = StyleSheet.create({
         margin: 30
     },
 
+    tr: {
+        display: 'flex',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        borderColor: COLOR_BLACK,
+        borderWidth: 2
+    },
+
     td: {
         padding: 5,
         paddingTop: 15,
         paddingBottom: 15,
-        color: COLOR_BLACK
+        width: RESULT_TD_WIDTH,
+    },
+
+    tdContent: {
+        color: COLOR_BLACK,
     },
 
     tdBg: {
@@ -594,4 +735,37 @@ const drawer = StyleSheet.create({
         padding: 10,
         textAlign: 'center'
     }
+});
+
+const privacy = StyleSheet.create({
+    header: {
+        fontSize: 32,
+        fontWeight: 'bold',
+        color: COLOR_BLACK
+    },
+
+    content: {
+        color: COLOR_BLACK,
+        marginTop: ANSWER_HEADER_MARGIN_TOP,
+        marginBottom: ANSWER_HEADER_MARGIN_TOP
+    }
+});
+
+const splashStyles = StyleSheet.create({
+        root: {
+            zIndex: 998,
+            justifyContent: 'center',
+            flex: 1,
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+        },
+
+        child: {
+            zIndex: 999,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: COLOR_ACCENT,
+            flex:1,
+        },
 });
