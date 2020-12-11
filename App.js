@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { Component, useState } from 'react';
 import {
     Button, View, Text, TextView, StyleSheet, AsyncStorage,
     TouchableOpacity, ScrollView, Dimensions, Image, FlatList,
@@ -44,9 +44,96 @@ const ELEMENTS = [
     }
 ];
 
-let tasks = [{
-    "question": "Który wódz"
-}];
+let tasks = [
+    {
+        "question": "Który wódz po śmierci Gajusza Mariusza, prowadził wojnę domową z Sullą?",
+        "answers": [
+            {
+                "content": "Lucjusz Cynna",
+                "isCorrect": true
+            },
+            {
+                "content": "Juliusz Cezar",
+                "isCorrect": false
+            },
+            {
+                "content": "Lucjusz Murena",
+                "isCorrect": false
+            },
+            {
+                "content": "Marek Krassus",
+                "isCorrect": false
+            }
+        ],
+        "duration": 10
+    },
+    {
+        "question": "Które zwierzę jest największym płazem z poniższej puli?",
+        "answers": [
+            {
+                "content": "Wąż boa",
+                "isCorrect": false
+            },
+            {
+                "content": "Waran",
+                "isCorrect": false
+            },
+            {
+                "content": "Żaba",
+                "isCorrect": true
+            },
+            {
+                "content": "Królik",
+                "isCorrect": false
+            }
+        ],
+        "duration": 10
+    },
+    {
+        "question": "Który wódz po śmierci Gajusza Mariusza, prowadził wojnę domową z Sullą?",
+        "answers": [
+            {
+                "content": "Lucjusz Cynna",
+                "isCorrect": true
+            },
+            {
+                "content": "Juliusz Cezar",
+                "isCorrect": false
+            },
+            {
+                "content": "Lucjusz Murena",
+                "isCorrect": false
+            },
+            {
+                "content": "Marek Krassus",
+                "isCorrect": false
+            }
+        ],
+        "duration": 17
+    },
+    {
+        "question": "Który wódz po śmierci Gajusza Mariusza, prowadził wojnę domową z Sullą?",
+        "answers": [
+            {
+                "content": "Lucjusz Cynna",
+                "isCorrect": true
+            },
+            {
+                "content": "Juliusz Cezar",
+                "isCorrect": false
+            },
+            {
+                "content": "Lucjusz Murena",
+                "isCorrect": false
+            },
+            {
+                "content": "Marek Krassus",
+                "isCorrect": false
+            }
+        ],
+        "duration": 20
+    }
+];
 
 let RESULTS_DATA = [
     {
@@ -182,6 +269,16 @@ function PrivacyScreen({navigation}) {
     );
 }
 
+function ScoreScreen({ route, navigation }) {
+
+console.log(route.params);
+     return (
+       <ScrollView>
+
+        </ScrollView>
+     );
+}
+
 function HomeScreen({ navigation }) {
     getIsAccepted(navigation);
   return (
@@ -291,38 +388,219 @@ function ResultScreen({ navigation }) {
 
 function Answer(props) {
     return (
-            <TouchableOpacity style={test.answer}>
+            <TouchableOpacity
+                style={test.answer}
+                onPress={() => { props.callback(props.answerOption)} }
+            >
                 <Text style={test.answerText}>{props.content}</Text>
             </TouchableOpacity>
     );
 }
 
+class Timer extends React.Component {
+    constructor(props: Object) {
+      super(props);
+      this.state = {
+        timer: props.duration,
+        nextQuestion: props.nextQuestion
+      }
+    }
+
+    componentDidMount(){
+      this.interval = setInterval(
+        () => {
+            if (this.state.timer === 0) {
+                this.state.nextQuestion();
+            } else {
+                this.setState({
+                    timer: this.state.timer - 1
+                });
+            }
+        },
+        1000
+      );
+    }
+
+    componentWillUnmount(){
+     clearInterval(this.interval);
+    }
+
+
+    UNSAFE_componentWillReceiveProps (newProps) {
+      if( newProps.duration !== this.state.timer){
+        clearInterval(this.interval);
+        this.setState({
+            timer: newProps.duration,
+            nextQuestion: newProps.nextQuestion
+        });
+
+         this.interval = setInterval(
+                () => {
+            if (this.state.timer === 0) {
+                this.state.nextQuestion();
+            } else {
+                this.setState({
+                    timer: this.state.timer - 1
+                });
+            }
+        }, 1000);
+      }
+    }
+
+    render() {
+      return (
+        <View>
+            <Text style={test.headerText}> Time: {this.state.timer} sec </Text>
+        </View>
+      )
+    }
+}
+
+class ProgressBar extends React.Component {
+    constructor(props: Object) {
+      super(props);
+      this.state = {
+        timer: props.duration,
+        duration: props.duration
+      }
+    }
+
+    componentDidMount(){
+      this.interval = setInterval(
+        () => {
+
+            if (this.state.timer === 0) {
+                clearInterval(this.interval);
+            } else {
+                this.setState({ timer: this.state.timer - 1 });
+            }
+        },
+        1000
+      );
+    }
+
+    componentWillUnmount(){
+     clearInterval(this.interval);
+    }
+
+    UNSAFE_componentWillReceiveProps (newProps) {
+      if( newProps.duration !== this.state.timer){
+        clearInterval(this.interval);
+        this.setState({
+            timer: newProps.duration,
+            duration: newProps.duration
+        });
+          this.interval = setInterval(
+            () => {
+                    this.setState({
+                        timer: this.state.timer - 1
+                    });
+            },
+            1000
+          );
+      }
+    }
+
+    render() {
+      return (
+        <View style={test.progressBar}>
+            <View style={[test.progress, {width: this.state.timer * 100 / this.state.duration * PROGRESS_BAR_WIDTH / 100}]}/>
+        </View>
+      )
+    }
+}
+
 function TestScreen({ navigation }) {
+    const [points, setPoints] = React.useState(0);
+    const [currentQuestion, setCurrentQuestion] = React.useState(0);
+    const countOfQuestions = tasks.length;
+    const [quiz, setQuiz] = React.useState(tasks[0]);
+    const [progress, setProgress] = React.useState(100);
+    const [duration, setDuration] = React.useState(quiz.duration);
+
+
+    const checkIsFinished = (answerOption) => {
+            if (currentQuestion < countOfQuestions) {
+                setCurrentQuestion(currentQuestion + 1);
+                setQuiz(tasks[currentQuestion]);
+                setDuration(tasks[currentQuestion + 1] ? tasks[currentQuestion + 1].duration: 0);
+            }
+    }
+
+    const handleAnswerButtonClick = (answerOption) => {
+        if (answerOption.isCorrect) {
+            setPoints(parseInt(points) + 1);
+        }
+
+        checkIsFinished(answerOption);
+    };
+
+   const RESULT_VIEW = (
+       <View>
+            <Header name="Your result"/>
+            <View style={test.container}>
+                <Text style={test.headerText}>Scores:</Text>
+                <Text style={test.headerText}>{points} / {countOfQuestions} pt</Text>
+                <View style={body.container}>
+                      {
+                                       <TouchableOpacity style={drawer.buttonG} onPress={() => {
+                                           navigation.navigate("Home")}
+                                       }>
+                                           <Text style={drawer.buttonText}>Go to Home</Text>
+                                       </TouchableOpacity>
+                      }
+                </View>
+            </View>
+       </View>
+   );
+
+   const nextQuestion = () => {
+        console.log('next');
+        checkIsFinished();
+   };
+
+   const TEST_VIEW = (
+        <View>
+             <Header name="Test #3" />
+                <View style={test.container}>
+                    <View style={test.header}>
+                        <Text style={test.headerText}> Question {currentQuestion + 1} of {countOfQuestions} </Text>
+                        <Timer nextQuestion={nextQuestion} duration={duration}/>
+                    </View>
+                    <View style={test.questionContainer}>
+                        <ProgressBar duration={duration}/>
+
+                        <Text style={test.headerText}>
+                            {
+                                quiz.question
+                            }
+                        </Text>
+                        <Text style={test.headerBody}>
+                            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+                        </Text>
+                    </View>
+                    <View style={test.answerContainer}>
+                        {
+                            quiz.answers.map((answer, key) => {
+                                    return <Answer
+                                        answerOption={answer}
+                                        callback={handleAnswerButtonClick}
+                                        content={answer.content}
+                                        key={key}
+                                    />
+                                }
+                            )
+                        }
+                    </View>
+                </View>
+        </View>
+   );
+
   return (
     <ScrollView>
-      <Header name="Test #3" />
-      <View style={test.container}>
-        <View style={test.header}>
-            <Text style={test.headerText}> Question 3 of 10 </Text>
-            <Text style={test.headerText}> Time: 28 sec </Text>
-        </View>
-        <View style={test.questionContainer}>
-            <View style={test.progressBar}>
-                <View style={test.progress}/>
-            </View>
-
-            <Text style={test.headerText}>This is some example of a long question to fill the content?</Text>
-            <Text style={test.headerBody}>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-            </Text>
-        </View>
-        <View style={test.answerContainer}>
-            <Answer content="Answer A" />
-            <Answer content="Answer B" />
-            <Answer content="Answer C" />
-            <Answer content="Answer D" />
-        </View>
-      </View>
+            {
+                (currentQuestion >= countOfQuestions) ? RESULT_VIEW : TEST_VIEW
+            }
     </ScrollView>
   );
 }
@@ -370,6 +648,7 @@ function CustomDrawerContent(props) {
   );
 }
 
+const SPLASH_SCREEN_TIME = 2000;
 export default class App extends Component<{}> {
     constructor(){
         super();
@@ -389,7 +668,7 @@ export default class App extends Component<{}> {
         const that = this;
         setTimeout(() => {
             that.Hide_Splash_Screen();
-        }, 2000);
+        }, SPLASH_SCREEN_TIME);
     }
 
     render(){
@@ -411,6 +690,7 @@ export default class App extends Component<{}> {
                 <Drawer.Screen name="Home" component={HomeScreen} />
                 <Drawer.Screen name="Result" component={ResultScreen} />
                 <Drawer.Screen name="Test" component={TestScreen} />
+                <Drawer.Screen name="Score" component={ScoreScreen} />
             </Drawer.Navigator>
         );
 
@@ -505,8 +785,8 @@ const footer = StyleSheet.create({
   }
 });
 
+const PROGRESS_BAR_WIDTH = 350;
 const ANSWER_HEADER_MARGIN_TOP = 20;
-const PROGRESS_WIDTH = '80%';
 const ANSWER_WIDTH = '46%';
 const ANSWER_MARGI_TOP = 20;
 
@@ -548,11 +828,12 @@ const test = StyleSheet.create({
         backgroundColor: COLOR_BLACK,
         height: 10,
         borderRadius: 3,
-        zIndex: 4
+        width: PROGRESS_BAR_WIDTH,
+        zIndex: 4,
+
     },
 
     progress: {
-        width: PROGRESS_WIDTH,
         backgroundColor: COLOR_ACCENT,
         zIndex: 5,
         height: 8,
@@ -570,7 +851,7 @@ const test = StyleSheet.create({
         flex: 1,
         justifyContent: 'space-between'
     },
-    
+
     answer: {
         padding: 10,
         backgroundColor: COLOR_SECONDARY,
