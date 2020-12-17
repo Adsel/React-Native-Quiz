@@ -44,148 +44,43 @@ const ELEMENTS = [
     }
 ];
 
-let tasks = [
-    {
-        "question": "Który wódz po śmierci Gajusza Mariusza, prowadził wojnę domową z Sullą?",
-        "answers": [
-            {
-                "content": "Lucjusz Cynna",
-                "isCorrect": true
-            },
-            {
-                "content": "Juliusz Cezar",
-                "isCorrect": false
-            },
-            {
-                "content": "Lucjusz Murena",
-                "isCorrect": false
-            },
-            {
-                "content": "Marek Krassus",
-                "isCorrect": false
-            }
-        ],
-        "type": "ogólny",
-        "duration": 10,
-    },
-    {
-        "question": "Które zwierzę jest największym płazem z poniższej puli?",
-        "answers": [
-            {
-                "content": "Wąż boa",
-                "isCorrect": false
-            },
-            {
-                "content": "Waran",
-                "isCorrect": false
-            },
-            {
-                "content": "Żaba",
-                "isCorrect": true
-            },
-            {
-                "content": "Królik",
-                "isCorrect": false
-            }
-        ],
-        "duration": 10
-    },
-    {
-        "question": "Który wódz po śmierci Gajusza Mariusza, prowadził wojnę domową z Sullą?",
-        "answers": [
-            {
-                "content": "Lucjusz Cynna",
-                "isCorrect": true
-            },
-            {
-                "content": "Juliusz Cezar",
-                "isCorrect": false
-            },
-            {
-                "content": "Lucjusz Murena",
-                "isCorrect": false
-            },
-            {
-                "content": "Marek Krassus",
-                "isCorrect": false
-            }
-        ],
-        "duration": 17
-    },
-    {
-        "question": "Który wódz po śmierci Gajusza Mariusza, prowadził wojnę domową z Sullą?",
-        "answers": [
-            {
-                "content": "Lucjusz Cynna",
-                "isCorrect": true
-            },
-            {
-                "content": "Juliusz Cezar",
-                "isCorrect": false
-            },
-            {
-                "content": "Lucjusz Murena",
-                "isCorrect": false
-            },
-            {
-                "content": "Marek Krassus",
-                "isCorrect": false
-            }
-        ],
-        "duration": 20
-    }
-];
 
-let RESULTS_DATA_OLD = [
-    {
-        id: 1,
-        "nick": 'Marek',
-        "score": 4,
-        "total": 20,
-        "type": 'historia',
-        "date": '21-12-2019',
-    },
-    {
-        id: 2,
-        "nick": 'Roman',
-        "score": 12,
-        "total": 20,
-        "type": 'historia',
-        "date": '01-01-2020',
-    },
-    {
-        id: 3,
-        "nick": 'Hieronim',
-        "score": 18,
-        "total": 20,
-        "type": 'historia',
-        "date": '20-01-2020',
-    },
-    {
-        id: 4,
-        "nick": 'Marek',
-        "score": 13,
-        "total": 20,
-        "type": 'historia',
-        "date": '21-01-2020',
-    },
-];
 
 function ListElement(props) {
+    const startQuiz = (quizId) => {
+                fetch('http://tgryl.pl/quiz/test/' + quizId, {
+                     method: 'GET',
+                     headers: {
+                        Accept: 'application/json', 'Content-Type': 'application/json'
+                     },
+                }).then((res) => {
+                    res.json().then((json) => {
+                        props.navigation.navigate("Test", {
+                            quiz: json
+                        });
+                    })
+                }).catch((err) => {
+                    console.error(JSON.stringify(err))
+                });
+    };
+
     return (
         <View style={body.elementContainer}>
-            <View style={body.element}>
+            <TouchableOpacity onPress={() => {startQuiz(props.quizId);}}style={body.element}>
                 <Text style={body.header}>{props.header}</Text>
                     <View style={body.tags}>
-                        <TouchableOpacity style={body.tag}>
-                            <Text style={body.tagText}>{props.tags[0]}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={body.tag}>
-                            <Text style={body.tagText}>{props.tags[1]}</Text>
-                        </TouchableOpacity>
+                        {
+                            props.tags.map((tag, index) => {
+                                return (
+                                    <TouchableOpacity key={index} style={body.tag}>
+                                        <Text style={body.tagText}>{tag}</Text>
+                                    </TouchableOpacity>
+                                )
+                            })
+                        }
                     </View>
                 <Text style={body.content}>{props.body}</Text>
-            </View>
+            </TouchableOpacity>
         </View>
     );
 }
@@ -281,30 +176,46 @@ console.log(route.params);
 }
 
 function HomeScreen({ navigation }) {
-  getIsAccepted(navigation);
+    getIsAccepted(navigation);
+    const [getList, setGetList] = useState(true);
+    const [quizList, setQuizList] = useState([]);
+    if (getList) {
+        setGetList(false);
+        fetch('http://tgryl.pl/quiz/tests', {
+             method: 'GET',
+             headers: {
+                Accept: 'application/json', 'Content-Type': 'application/json'
+             },
+        }).then((res) => {
+            res.json().then((json) => {
+                setQuizList(json);
+            })
+        }).catch((err) => {
+            console.error(JSON.stringify(err))
+        });
+    }
 
-  return (
-    <ScrollView style={styles.Roboto}>
-        <Header name="Home Page"/>
-        <View style={body.container}>
-            {
-
-                ELEMENTS.map(element => {
-                    return <ListElement
-                                key={element.id}
-                                header={element.header}
-                                body={element.body}
-                                tags={[element.linkName, element.linkNameSecond]}
-                            />;
-                })
-            }
-         </View>
-        <Footer />
-     </ScrollView>
-  );
+      return (
+        <ScrollView>
+            <Header name="Home Page"/>
+            <View style={body.container}>
+                {
+                    quizList.map((element, index) => {
+                        return <ListElement
+                            quizId = {element.id}
+                            key={index + 100}
+                            header={element.name}
+                            body={element.description}
+                            tags={element.tags}
+                            navigation={navigation}
+                        />;
+                    })
+                }
+             </View>
+            <Footer />
+         </ScrollView>
+      );
 }
-
-let RESULTS_DATA;
 
 const RenderResult = (props) => {
     let styles = [body.tdBg];
@@ -352,18 +263,17 @@ function ResultScreen({ navigation }) {
     const [getResults, setGetResults] = useState(true);
     if (getResults) {
         setGetResults(false);
-          fetch('http://tgryl.pl/quiz/results', {
-                        method: 'GET',
-                        headers: {
-                            Accept: 'application/json',
-                            'Content-Type': 'application/json'  // I added this line
-          },
+        fetch('http://tgryl.pl/quiz/results', {
+            method: 'GET',
+            headers: {
+                Accept: 'application/json', 'Content-Type': 'application/json'
+            },
         }).then((res) => {
             res.json().then((json) => {
                 setResultsData(json);
             })
         }).catch((err) => {
-            console.error(JSON.stringify(err))
+            console.error(JSON.stringify(err));
         });
     }
 
@@ -535,7 +445,9 @@ class ProgressBar extends React.Component {
     }
 }
 
-function TestScreen({ navigation }) {
+function TestScreen({ route, navigation }) {
+    const quizInfo = route.params.quiz;
+    const tasks = quizInfo.tasks;
     const [points, setPoints] = React.useState(0);
     const [currentQuestion, setCurrentQuestion] = React.useState(0);
     const countOfQuestions = tasks.length;
@@ -546,12 +458,20 @@ function TestScreen({ navigation }) {
 
     if (sendResult) {
         setSendResult(false);
+        let tags = quizInfo.tags;
+        let stringTags = "";
+        tags.map((tag, index) => {
+            if (index > 0) {
+                stringTags += ", "
+            }
+            stringTags += tag.toString();
+        });
         let obj = JSON.stringify({
-                                  "nick": "TEST",
-                                  "score": points,
-                                  "total": countOfQuestions,
-                                  "type": tasks[0].type
-                              });
+            "nick": "TEST",
+            "score": points,
+            "total": countOfQuestions,
+            "type": stringTags
+        });
         fetch('http://tgryl.pl/quiz/result', {
             method: 'POST',
             headers: {
@@ -560,7 +480,6 @@ function TestScreen({ navigation }) {
             body: obj,
         }).then((res) => {
             res.json().then((json) => {
-                // maybe toast? ;d
                 console.log('Result has been sent', obj);
             })
         }).catch((err) => {
@@ -695,9 +614,6 @@ function CustomDrawerContent(props) {
         <DrawerButton navigation={props.navigation} name="Test #1" target="Test"/>
         <DrawerButton navigation={props.navigation} name="Test #2" target="Test"/>
         <DrawerButton navigation={props.navigation} name="Test #3" target="Test"/>
-
-
-
     </DrawerContentScrollView>
   );
 }
