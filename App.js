@@ -65,7 +65,8 @@ let tasks = [
                 "isCorrect": false
             }
         ],
-        "duration": 10
+        "type": "ogólny",
+        "duration": 10,
     },
     {
         "question": "Które zwierzę jest największym płazem z poniższej puli?",
@@ -348,6 +349,24 @@ const RenderResultHead = () => {
 }
 
 function ResultScreen({ navigation }) {
+    const [getResults, setGetResults] = useState(true);
+    if (getResults) {
+        setGetResults(false);
+          fetch('http://tgryl.pl/quiz/results', {
+                        method: 'GET',
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json'  // I added this line
+          },
+        }).then((res) => {
+            res.json().then((json) => {
+                setResultsData(json);
+            })
+        }).catch((err) => {
+            console.error(JSON.stringify(err))
+        });
+    }
+
   const renderItem = ({item}) => (
         <RenderResult results={resultsData} item={item}/>
   );
@@ -369,20 +388,7 @@ function ResultScreen({ navigation }) {
     wait(2000).then(() => setRefreshing(false));
   }, []);
 
-  fetch('http://tgryl.pl/quiz/results', {
-                method: 'GET',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json'  // I added this line
-                },
-            }).then((res) => {
-                res.json().then((json) => {
-                    setResultsData(json);
-                    console.log('ok');
-                })
-            }).catch((err) => {
-                console.error(JSON.stringify(err))
-            });
+
 
   return (
     <View>
@@ -536,13 +542,42 @@ function TestScreen({ navigation }) {
     const [quiz, setQuiz] = React.useState(tasks[0]);
     const [progress, setProgress] = React.useState(100);
     const [duration, setDuration] = React.useState(quiz.duration);
+    const [sendResult, setSendResult] = React.useState(false);
 
+    if (sendResult) {
+        setSendResult(false);
+        let obj = JSON.stringify({
+                                  "nick": "TEST",
+                                  "score": points,
+                                  "total": countOfQuestions,
+                                  "type": tasks[0].type
+                              });
+        fetch('http://tgryl.pl/quiz/result', {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json', 'Content-Type': 'application/json'
+            },
+            body: obj,
+        }).then((res) => {
+            res.json().then((json) => {
+                // maybe toast? ;d
+                console.log('Result has been sent', obj);
+            })
+        }).catch((err) => {
+            console.error(JSON.stringify(err))
+        });
+    }
 
     const checkIsFinished = (answerOption) => {
             if (currentQuestion < countOfQuestions) {
                 setCurrentQuestion(currentQuestion + 1);
                 setQuiz(tasks[currentQuestion]);
                 setDuration(tasks[currentQuestion + 1] ? tasks[currentQuestion + 1].duration: 0);
+
+                // CHECK THE LAST ONE
+                if (currentQuestion === countOfQuestions - 1) {
+                    setSendResult(true);
+                }
             }
     }
 
@@ -750,9 +785,9 @@ const header = StyleSheet.create({
   },
 
   text: {
-    fontSize: 40,
+    fontSize: 50,
     color: COLOR_WHITE,
-    fontWeight: 'bold'
+    fontFamily: 'langar-regular'
   },
 
   hr: {
@@ -794,8 +829,8 @@ const footer = StyleSheet.create({
 
   ctaText: {
     color: COLOR_BLACK,
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontFamily: 'langar-regular',
     textAlign: 'center'
   },
 
@@ -824,7 +859,7 @@ const test = StyleSheet.create({
     headerText: {
         marginTop: ANSWER_HEADER_MARGIN_TOP,
         color: COLOR_BLACK,
-        fontWeight: 'bold',
+        fontFamily: 'langar-regular',
         fontSize: 18,
         textAlign: 'center'
     },
@@ -891,13 +926,13 @@ const RESULT_TD_WIDTH = '25%';
 const body = StyleSheet.create({
     container: {
         backgroundColor: COLOR_WHITE,
-        padding: 30,
-        fontFamily: 'JetBrains Mono'
+        padding: 30
     },
 
     table: {
         backgroundColor: COLOR_WHITE,
-        margin: 30
+        margin: 30,
+        height: 500
     },
 
     tr: {
@@ -929,10 +964,11 @@ const body = StyleSheet.create({
 
     tdTitle: {
         padding: 5,
-        fontWeight: 'bold',
         color: COLOR_BLACK,
         paddingTop: 15,
         paddingBottom: 15,
+        fontSize: 22,
+        fontFamily: 'langar-regular'
     },
 
     elementContainer: {
@@ -950,7 +986,7 @@ const body = StyleSheet.create({
     header: {
         fontSize: 18,
         color: COLOR_BLACK,
-        fontWeight: 'bold'
+        fontFamily: 'langar-regular'
     },
 
     tags: {
@@ -969,11 +1005,13 @@ const body = StyleSheet.create({
     },
 
     tagText: {
-        color: COLOR_WHITE
+        color: COLOR_WHITE,
+        fontFamily: 'langar-regular'
     },
 
     content: {
-        color: COLOR_BLACK
+        color: COLOR_BLACK,
+        fontFamily: 'roboto-regular'
     }
 });
 
@@ -983,7 +1021,10 @@ const PLACEHOLDER_WIDTH = '90%';
 const PLACEHOLDER_MARGIN_WIDTH = '5%';
 const drawer = StyleSheet.create({
     container: {
-        padding: 20,
+        paddingTop: 10,
+        paddingBottom: 10,
+        paddingLeft: 20,
+        paddingRight: 20,
         backgroundColor: COLOR_SECONDARY,
         display: 'flex'
     },
@@ -997,8 +1038,8 @@ const drawer = StyleSheet.create({
 
     appName: {
        color: COLOR_BLACK,
-       fontSize: 24,
-       fontWeight: 'bold',
+       fontSize: 40,
+       fontFamily: 'langar-regular',
        color: COLOR_BLACK,
        padding: 0,
        margin: 0,
@@ -1027,14 +1068,16 @@ const drawer = StyleSheet.create({
         borderRadius: 6,
         borderWidth: 2,
         borderColor: COLOR_BLACK,
-        marginTop: DRAWER_MARGIN_TOP / 2
+        marginTop: DRAWER_MARGIN_TOP / 2,
+        fontFamily: 'roboto-regular'
     },
 
     buttonText: {
         color: COLOR_BLACK,
         fontSize: 14,
         padding: 10,
-        textAlign: 'center'
+        textAlign: 'center',
+        fontFamily: 'roboto-regular'
     }
 });
 
