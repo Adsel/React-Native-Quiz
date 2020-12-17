@@ -135,7 +135,7 @@ let tasks = [
     }
 ];
 
-let RESULTS_DATA = [
+let RESULTS_DATA_OLD = [
     {
         id: 1,
         "nick": 'Marek',
@@ -280,11 +280,11 @@ console.log(route.params);
 }
 
 function HomeScreen({ navigation }) {
-    getIsAccepted(navigation);
-  return (
-    <ScrollView>
-        <Header name="Home Page"/>
+  getIsAccepted(navigation);
 
+  return (
+    <ScrollView style={styles.Roboto}>
+        <Header name="Home Page"/>
         <View style={body.container}>
             {
 
@@ -303,9 +303,11 @@ function HomeScreen({ navigation }) {
   );
 }
 
+let RESULTS_DATA;
+
 const RenderResult = (props) => {
     let styles = [body.tdBg];
-    if (RESULTS_DATA.indexOf(props.item) % 2 == 0) {
+    if (props.results.indexOf(props.item) % 2 == 0) {
         styles = [body.tdBgAccent];
     }
     return (
@@ -347,7 +349,7 @@ const RenderResultHead = () => {
 
 function ResultScreen({ navigation }) {
   const renderItem = ({item}) => (
-        <RenderResult item={item}/>
+        <RenderResult results={resultsData} item={item}/>
   );
 
     const wait = (timeout) => {
@@ -358,12 +360,29 @@ function ResultScreen({ navigation }) {
 
   const [refreshing, setRefreshing] = React.useState(false);
 
+  const [resultsData, setResultsData] = React.useState([]);
+
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
 
     // RETRIEVE DATA
     wait(2000).then(() => setRefreshing(false));
   }, []);
+
+  fetch('http://tgryl.pl/quiz/results', {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json'  // I added this line
+                },
+            }).then((res) => {
+                res.json().then((json) => {
+                    setResultsData(json);
+                    console.log('ok');
+                })
+            }).catch((err) => {
+                console.error(JSON.stringify(err))
+            });
 
   return (
     <View>
@@ -374,9 +393,9 @@ function ResultScreen({ navigation }) {
             <RenderResultHead />
             <FlatList
                 style={{display: 'flex'}}
-                data={RESULTS_DATA}
+                data={resultsData}
                 renderItem={renderItem}
-                keyExtractor={item => RESULTS_DATA.indexOf(item).toString()}
+                keyExtractor={item => resultsData.indexOf(item).toString()}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                 }
@@ -872,7 +891,8 @@ const RESULT_TD_WIDTH = '25%';
 const body = StyleSheet.create({
     container: {
         backgroundColor: COLOR_WHITE,
-        padding: 30
+        padding: 30,
+        fontFamily: 'JetBrains Mono'
     },
 
     table: {
@@ -1029,6 +1049,12 @@ const privacy = StyleSheet.create({
         color: COLOR_BLACK,
         marginTop: ANSWER_HEADER_MARGIN_TOP,
         marginBottom: ANSWER_HEADER_MARGIN_TOP
+    }
+});
+
+const styles = StyleSheet.create({
+    Roboto:{
+        fontFamily: 'Roboto-Regular'
     }
 });
 
