@@ -2,49 +2,13 @@ import React, { Component, useState } from 'react';
 import {
     Button, View, Text, TextView, StyleSheet, AsyncStorage,
     TouchableOpacity, ScrollView, Dimensions, Image, FlatList,
-    SafeAreaView, RefreshControl
+    SafeAreaView, RefreshControl, StackActions, NavigationActions
 } from 'react-native';
+import NetInfo from "@react-native-community/netinfo";
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, CommonActions } from '@react-navigation/native';
 import { Table, Row, Rows } from 'react-native-table-component';
-
-//        <Button
-//            onPress={() => navigation.navigate('Notifications')}
-//            title="Go to notifications"
-//        />
-
-const ELEMENTS = [
-    {
-        id: "1",
-        header: 'Title test #1',
-        linkName: '#Tag1',
-        linkNameSecond: '#Tag2',
-        body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. '
-    },
-    {
-        id: "2",
-        header: 'Title test #2',
-        linkName: '#Tag1',
-        linkNameSecond: '#Tag2',
-        body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. '
-    },
-    {
-        id: "3",
-        header: 'Title test #3',
-        linkName: '#Tag1',
-        linkNameSecond: '#Tag2',
-        body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. '
-    },
-    {
-        id: "4",
-        header: 'Title test #4',
-        linkName: '#Tag1',
-        linkNameSecond: '#Tag2',
-        body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. '
-    }
-];
-
-
+import SQLite from "react-native-sqlite-storage";
 
 function ListElement(props) {
     const startQuiz = (quizId) => {
@@ -55,9 +19,9 @@ function ListElement(props) {
                      },
                 }).then((res) => {
                     res.json().then((json) => {
-                        props.navigation.navigate("Test", {
-                            quiz: json
-                        });
+                        props.navigation.reset({routes: [{
+                                    name: 'Test', params: {quiz: json}
+                        }]});
                     })
                 }).catch((err) => {
                     console.error(JSON.stringify(err))
@@ -89,10 +53,16 @@ function Header(props) {
      return (
         <View>
             <View style={header.container}>
-                <Image
-                    style={header.img}
-                    source={require('./img/hamburger-icon.png')}
-                />
+                <TouchableOpacity onPress={() => {
+                        props.nav.openDrawer()
+                    }
+                }>
+                    <Image
+                        style={header.img}
+                        source={require('./img/hamburger-icon.png')}
+                    />
+                </TouchableOpacity>
+
                 <Text style={header.text}>
                     { props.name }
                 </Text>
@@ -150,7 +120,7 @@ function PrivacyAccept(props) {
 function PrivacyScreen({navigation}) {
     return (
         <ScrollView>
-            <Header name="Welcome Page"/>
+            <Header nav={navigation} name="Welcome Page"/>
 
             <View style={body.container}>
                 <Text style={privacy.header}>
@@ -166,8 +136,6 @@ function PrivacyScreen({navigation}) {
 }
 
 function ScoreScreen({ route, navigation }) {
-
-console.log(route.params);
      return (
        <ScrollView>
 
@@ -175,29 +143,96 @@ console.log(route.params);
      );
 }
 
+const ACCESS_TOKEN = 'List_Of_Quiz';
+const saveQuizListToAsync = (responseData) => {
+    AsyncStorage.setItem(ACCESS_TOKEN, responseData, (err)=> {
+        if(err){
+            console.log("an asyncstorage error");
+            throw err;
+        }
+        console.log("Saved in asyncstorage");
+    }).catch((err)=> {
+        console.log("error is: " + err);
+    });
+}
+
+let quizLists = false;
 function HomeScreen({ navigation }) {
     getIsAccepted(navigation);
     const [getList, setGetList] = useState(true);
     const [quizList, setQuizList] = useState([]);
-    if (getList) {
-        setGetList(false);
-        fetch('http://tgryl.pl/quiz/tests', {
-             method: 'GET',
-             headers: {
-                Accept: 'application/json', 'Content-Type': 'application/json'
-             },
-        }).then((res) => {
-            res.json().then((json) => {
-                setQuizList(json);
-            })
-        }).catch((err) => {
-            console.error(JSON.stringify(err))
-        });
+
+    function getDataFromServer() {
+        if (getList) {
+            setGetList(false);
+            fetch('http://tgryl.pl/quiz/tests', {
+                 method: 'GET',
+                 headers: {
+                    Accept: 'application/json', 'Content-Type': 'application/json'
+                 },
+            }).then((res) => {
+                res.json().then((json) => {
+                    const shuffledList = shuffle(json);
+                    quizLists = shuffledList;
+                    setQuizList(shuffledList);
+
+                    const objectToSave = {
+                            quiz: shuffledList,
+                            date: new Date()
+                    };
+                    saveQuizListToAsync(JSON.stringify(objectToSave));
+                })
+            }).catch((err) => {
+                console.error(JSON.stringify(err))
+            });
+        }
     }
+    let isDownloadedDataToday = true;
+    async function check(isNetwork) {
+        if (getList) {
+            setGetList(false);
+            try {
+                    const value = await AsyncStorage.getItem(ACCESS_TOKEN);
+                    if (value !== null) {
+                        const responsed = JSON.parse(value);
+                        const dataDate = new Date(responsed.date);
+                        const currDate = new Date();
+
+                        if (
+                            dataDate.getMonth() != currDate.getMonth()
+                            || dataDate.getDay() != currDate.getDay()
+                            || dataDate.getFullYear != currDate.getFullYear()
+                            || !isNetwork
+                        ) {
+                            console.log('read from async quiz data');
+                            const shuffledList = shuffle(responsed.quiz);
+                            quizLists = shuffledList;
+                            setQuizList(shuffledList);
+                        } else {
+                            console.log('update quiz data from server');
+                            getDataFromServer();
+                        }
+                    } else {
+                        getDataFromServer();
+                    }
+                } catch (error) {
+                    getDataFromServer();
+                }
+        }
+    }
+
+    NetInfo.fetch().then(state => {
+        let isNetworkConnection = true;
+        if (!state.isConnected) {
+            console.log('NOT CONNECTED');
+            isNetworkConnection = false;
+        }
+        check(isNetworkConnection);
+    });
 
       return (
         <ScrollView>
-            <Header name="Home Page"/>
+            <Header nav={navigation} name="Home Page"/>
             <View style={body.container}>
                 {
                     quizList.map((element, index) => {
@@ -302,7 +337,7 @@ function ResultScreen({ navigation }) {
 
   return (
     <View>
-        <Header name="Results"/>
+        <Header nav={navigation} name="Results"/>
 
 
         <SafeAreaView style={body.table}>
@@ -452,6 +487,7 @@ function TestScreen({ route, navigation }) {
     const [currentQuestion, setCurrentQuestion] = React.useState(0);
     const countOfQuestions = tasks.length;
     const [quiz, setQuiz] = React.useState(tasks[0]);
+
     const [progress, setProgress] = React.useState(100);
     const [duration, setDuration] = React.useState(quiz.duration);
     const [sendResult, setSendResult] = React.useState(false);
@@ -510,7 +546,7 @@ function TestScreen({ route, navigation }) {
 
    const RESULT_VIEW = (
        <View>
-            <Header name="Your result"/>
+            <Header nav={navigation} name="Your result"/>
             <View style={test.container}>
                 <Text style={test.headerText}>Scores:</Text>
                 <Text style={test.headerText}>{points} / {countOfQuestions} pt</Text>
@@ -528,13 +564,13 @@ function TestScreen({ route, navigation }) {
    );
 
    const nextQuestion = () => {
-        console.log('next');
         checkIsFinished();
    };
 
+   const shuffledAnswers = shuffle(quiz.answers);
    const TEST_VIEW = (
         <View>
-             <Header name="Test #3" />
+             <Header nav={navigation} name={quizInfo.name} />
                 <View style={test.container}>
                     <View style={test.header}>
                         <Text style={test.headerText}> Question {currentQuestion + 1} of {countOfQuestions} </Text>
@@ -554,7 +590,8 @@ function TestScreen({ route, navigation }) {
                     </View>
                     <View style={test.answerContainer}>
                         {
-                            quiz.answers.map((answer, key) => {
+
+                            shuffledAnswers.map((answer, key) => {
                                     return <Answer
                                         answerOption={answer}
                                         callback={handleAnswerButtonClick}
@@ -579,20 +616,75 @@ function TestScreen({ route, navigation }) {
 }
 
 const Drawer = createDrawerNavigator();
-
+let testIndex = false;
+let testRandom = false;
 function DrawerButton(props) {
     return (
-
             <TouchableOpacity style={drawer.buttonG} onPress={() => {
-                props.navigation.navigate(props.target)}
-            }>
+                if (props.target != 'Test') {
+                    props.navigation.reset(
+                        {routes: [{
+                            name: props.target
+                            }
+                        ]}
+                    );
+                } else {
+                    const startQuiz = (index) => {
+                                fetch('http://tgryl.pl/quiz/test/' + index, {
+                                     method: 'GET',
+                                     headers: {
+                                        Accept: 'application/json', 'Content-Type': 'application/json'
+                                     },
+                                }).then((res) => {
+                        res.json().then((json) => {
+
+                        props.navigation.reset({routes: [{name: 'Test', params: { quiz: json}}]});
+                    });
+
+                                }).catch((err) => {
+                                    console.error(JSON.stringify(err))
+                                });
+                    };
+
+                    testRandom = props.random == 'true' ? true : false;
+                    let index = 0;
+                    if (testRandom == true) {
+                        index = Math.floor(Math.random() * (quizLists.length));
+                        testRandom = false;
+                        startQuiz(quizLists[index].id);
+                    } else if (!!props.quizID) {
+                        startQuiz(props.quizID);
+                    }
+                }
+            }}>
                 <Text style={drawer.buttonText}>{props.name}</Text>
             </TouchableOpacity>
 
     );
 }
 
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+
+  return array;
+}
+
 function CustomDrawerContent(props) {
+    //shuffledQuizList = shuffle(quizLists);
+
   return (
     <DrawerContentScrollView {...props}>
         <View style={drawer.header}>
@@ -607,18 +699,28 @@ function CustomDrawerContent(props) {
         </View>
 
         <DrawerButton navigation={props.navigation} name="Home" target="Home"/>
-        <DrawerButton navigation={props.navigation} name="Result" target="Result"/>
+        <DrawerButton navigation={props.navigation} name="Results" target="Result"/>
+        <DrawerButton navigation={props.navigation} name="Update Tests" target="Home"/>
+        <DrawerButton navigation={props.navigation} random="true" name="Random Test" target="Test"/>
 
         <Text style={drawer.hr}></Text>
+        {
+            (quizLists.length > 0)  ?
+                shuffle(quizLists).map((element, index) => {
+                    return <DrawerButton
+                        navigation={props.navigation} quizID={element.id}
+                        key={index}
+                        name={element.name} target="Test"
+                    />
+                  })
+            : null
+        }
 
-        <DrawerButton navigation={props.navigation} name="Test #1" target="Test"/>
-        <DrawerButton navigation={props.navigation} name="Test #2" target="Test"/>
-        <DrawerButton navigation={props.navigation} name="Test #3" target="Test"/>
     </DrawerContentScrollView>
   );
 }
 
-const SPLASH_SCREEN_TIME = 2000;
+const SPLASH_SCREEN_TIME = 1000;
 export default class App extends Component<{}> {
     constructor(){
         super();
@@ -653,7 +755,7 @@ export default class App extends Component<{}> {
         );
 
         let Drawer_Screen = (
-            <Drawer.Navigator  drawerStyle={drawer.container} initialRouteName="Home"
+            <Drawer.Navigator drawerStyle={drawer.container} initialRouteName="Home"
                 drawerContent={(props) => <CustomDrawerContent {...props} />}
             >
                 <Drawer.Screen name="Privacy" component={PrivacyScreen} />
@@ -701,7 +803,7 @@ const header = StyleSheet.create({
   },
 
   text: {
-    fontSize: 50,
+    fontSize: 30,
     color: COLOR_WHITE,
     fontFamily: 'langar-regular'
   },
@@ -829,12 +931,16 @@ const test = StyleSheet.create({
         borderWidth: 3,
         borderRadius: 3,
         width: ANSWER_WIDTH,
-        margin: 5
+        margin: 5,
+        display: 'flex',
+        alignItems: 'center'
     },
 
     answerText: {
+        display: 'flex',
         color: COLOR_BLACK,
-        textAlign: 'center'
+        textAlign: 'center',
+        alignItems: 'center'
     }
 });
 
