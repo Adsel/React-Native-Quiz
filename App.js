@@ -20,7 +20,7 @@ function ListElement(props) {
                 }).then((res) => {
                     res.json().then((json) => {
                         props.navigation.reset({routes: [{
-                                    name: 'Test', params: {quiz: json}
+                                    name: 'Test', params: {quiz: json, start: true}
                         }]});
                     })
                 }).catch((err) => {
@@ -480,17 +480,23 @@ class ProgressBar extends React.Component {
     }
 }
 
+let currentQuestionN;
+let startedQuiz = false;
 function TestScreen({ route, navigation }) {
+    if (!startedQuiz && route.params.start) {
+        route.params.start = false;
+        startedQuiz = true;
+        currentQuestionN = 0;
+    }
+
     const quizInfo = route.params.quiz;
     const tasks = quizInfo.tasks;
     const [points, setPoints] = React.useState(0);
-    const [currentQuestion, setCurrentQuestion] = React.useState(0);
     const countOfQuestions = tasks.length;
     const [quiz, setQuiz] = React.useState(tasks[0]);
-
     const [progress, setProgress] = React.useState(100);
     const [duration, setDuration] = React.useState(quiz.duration);
-    const [sendResult, setSendResult] = React.useState(false);
+    const [sendResult, setSendResult] = React.useState(false)
 
     if (sendResult) {
         setSendResult(false);
@@ -523,15 +529,15 @@ function TestScreen({ route, navigation }) {
         });
     }
 
-    const checkIsFinished = (answerOption) => {
-            if (currentQuestion < countOfQuestions) {
-                setCurrentQuestion(currentQuestion + 1);
-                setQuiz(tasks[currentQuestion]);
-                setDuration(tasks[currentQuestion + 1] ? tasks[currentQuestion + 1].duration: 0);
-
-                // CHECK THE LAST ONE
-                if (currentQuestion === countOfQuestions - 1) {
+     const checkIsFinished = (answerOption) => {
+            if (currentQuestionN < countOfQuestions) {
+                currentQuestionN =  currentQuestionN + 1;
+                if (currentQuestionN === countOfQuestions) {
                     setSendResult(true);
+                    startedQuiz = false;
+                } else {
+                    setQuiz(tasks[currentQuestionN]);
+                    setDuration(tasks[currentQuestionN] ? tasks[currentQuestionN].duration: 0);
                 }
             }
     }
@@ -552,11 +558,11 @@ function TestScreen({ route, navigation }) {
                 <Text style={test.headerText}>{points} / {countOfQuestions} pt</Text>
                 <View style={body.container}>
                       {
-                                       <TouchableOpacity style={drawer.buttonG} onPress={() => {
-                                           navigation.navigate("Home")}
-                                       }>
-                                           <Text style={drawer.buttonText}>Go to Home</Text>
-                                       </TouchableOpacity>
+                        <TouchableOpacity style={drawer.buttonG} onPress={() => {
+                            navigation.navigate("Home")}
+                        }>
+                            <Text style={drawer.buttonText}>Go to Home</Text>
+                        </TouchableOpacity>
                       }
                 </View>
             </View>
@@ -573,7 +579,7 @@ function TestScreen({ route, navigation }) {
              <Header nav={navigation} name={quizInfo.name} />
                 <View style={test.container}>
                     <View style={test.header}>
-                        <Text style={test.headerText}> Question {currentQuestion + 1} of {countOfQuestions} </Text>
+                        <Text style={test.headerText}> Question {currentQuestionN + 1} of {countOfQuestions} </Text>
                         <Timer nextQuestion={nextQuestion} duration={duration}/>
                     </View>
                     <View style={test.questionContainer}>
@@ -609,7 +615,7 @@ function TestScreen({ route, navigation }) {
   return (
     <ScrollView>
             {
-                (currentQuestion >= countOfQuestions) ? RESULT_VIEW : TEST_VIEW
+                (currentQuestionN >= countOfQuestions) ? RESULT_VIEW : TEST_VIEW
             }
     </ScrollView>
   );
@@ -638,7 +644,7 @@ function DrawerButton(props) {
                                 }).then((res) => {
                         res.json().then((json) => {
 
-                        props.navigation.reset({routes: [{name: 'Test', params: { quiz: json}}]});
+                        props.navigation.reset({routes: [{name: 'Test', params: { quiz: json, start: true}}]});
                     });
 
                                 }).catch((err) => {
@@ -665,15 +671,9 @@ function DrawerButton(props) {
 
 function shuffle(array) {
   var currentIndex = array.length, temporaryValue, randomIndex;
-
-  // While there remain elements to shuffle...
   while (0 !== currentIndex) {
-
-    // Pick a remaining element...
     randomIndex = Math.floor(Math.random() * currentIndex);
     currentIndex -= 1;
-
-    // And swap it with the current element.
     temporaryValue = array[currentIndex];
     array[currentIndex] = array[randomIndex];
     array[randomIndex] = temporaryValue;
